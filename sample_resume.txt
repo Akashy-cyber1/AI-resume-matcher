@@ -1,0 +1,9 @@
+Akash Sharma
+Python Developer
+
+Skills:
+Python, Django, FastAPI, PostgreSQL, Git, REST API
+
+Projects:
+Built a resume matching system using FastAPI and semantic similarity.
+Created backend APIs for file upload and analysis.
