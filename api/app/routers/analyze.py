@@ -1,57 +1,70 @@
-import os
-import time
-import tempfile
+import base64
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from celery.result import AsyncResult
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 
-from app.services.parser import extract_resume_text
-from app.services.embedding import get_embedding
-from app.services.scoring import cosine_similarity_score, normalize_score
-from app.services.keywords import get_missing_keywords
-from app.services.suggestions import generate_suggestions
+from app.celery_app import celery_app
+from app.core.rate_limit import enforce_rate_limit
+from app.schemas.analyze import AnalyzeResponse, TaskQueuedResponse, TaskStatusResponse
+from app.services.analyze_service import run_analysis_from_bytes
+from app.tasks.analyze_tasks import analyze_resume_task
 
 router = APIRouter()
 
-@router.post("/")
-async def analyze_resume(
+
+@router.post("/", response_model=AnalyzeResponse, dependencies=[Depends(enforce_rate_limit)])
+def analyze_resume(
+    request: Request,
     resume: UploadFile = File(...),
-    jd_text: str = Form(...)
+    jd_text: str = Form(...),
 ):
-    start_time = time.time()
+    file_bytes = resume.file.read()
+    return run_analysis_from_bytes(
+        file_bytes=file_bytes,
+        filename=resume.filename or "",
+        content_type=resume.content_type,
+        jd_text=jd_text,
+    )
 
-    suffix = os.path.splitext(resume.filename)[1]
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        content = await resume.read()
-        tmp.write(content)
-        temp_path = tmp.name
+@router.post("/async", response_model=TaskQueuedResponse, dependencies=[Depends(enforce_rate_limit)])
+def analyze_resume_async(
+    request: Request,
+    resume: UploadFile = File(...),
+    jd_text: str = Form(...),
+):
+    file_bytes = resume.file.read()
+    encoded_file = base64.b64encode(file_bytes).decode("utf-8")
 
-    try:
-        resume_text = extract_resume_text(temp_path)
-        if not resume_text.strip():
-            raise HTTPException(status_code=400, detail="Resume text extraction failed")
+    task = analyze_resume_task.delay(
+        encoded_file,
+        resume.filename or "",
+        resume.content_type or "",
+        jd_text,
+    )
+    return TaskQueuedResponse(task_id=task.id, status="queued")
 
-        resume_embedding = get_embedding(resume_text)
-        jd_embedding = get_embedding(jd_text)
 
-        similarity = cosine_similarity_score(resume_embedding, jd_embedding)
-        score = normalize_score(similarity)
+@router.get("/tasks/{task_id}", response_model=TaskStatusResponse)
+def get_task_status(task_id: str):
+    result = AsyncResult(task_id, app=celery_app)
 
-        keyword_result = get_missing_keywords(resume_text, jd_text)
-        missing_keywords = keyword_result["missing_keywords"]
+    if result.state == "SUCCESS":
+        return TaskStatusResponse(
+            task_id=task_id,
+            status="SUCCESS",
+            result=result.result,
+        )
 
-        suggestions = generate_suggestions(score, missing_keywords)
+    if result.state in {"PENDING", "STARTED", "RETRY"}:
+        return TaskStatusResponse(
+            task_id=task_id,
+            status=result.state,
+            result=None,
+        )
 
-        processing_time = round(time.time() - start_time, 2)
-
-        return {
-            "score": score,
-            "similarity": round(similarity, 4),
-            "missing_keywords": missing_keywords[:15],
-            "suggestions": suggestions,
-            "processing_time": processing_time
-        }
-
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+    return TaskStatusResponse(
+        task_id=task_id,
+        status="FAILURE",
+        result=None,
+    )
