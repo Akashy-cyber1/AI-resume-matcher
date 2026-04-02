@@ -1,0 +1,11 @@
+- [ ] Update `frontend/src/app/contact/page.tsx`
+  - [ ] Import `Link` from `next/link`
+  - [ ] Replace internal FAQ `<a href="/#faq">` with `<Link href="/#faq">` preserving classes/content
+  - [ ] Escape quoted `URGENT` text using HTML entities only
+- [ ] Update `frontend/src/app/success/page.tsx`
+  - [ ] Remove render-time `Math.random()` usage
+  - [ ] Add deterministic React-safe pseudo-random helper based on particle id/salt
+  - [ ] Preserve confetti style/quantity/visual feel
+- [ ] Update `frontend/BLACKBOX_MIGRATION_REPORT.md` with lint-fix entry
+- [ ] Run lint verification
+- [ ] Summarize results and stop
