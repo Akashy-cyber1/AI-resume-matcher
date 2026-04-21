@@ -2,7 +2,8 @@ import os
 import psycopg
 from dotenv import load_dotenv
 
-load_dotenv("api/.env")
+# load_dotenv("api/.env")
+load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 

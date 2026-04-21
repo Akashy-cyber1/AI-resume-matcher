@@ -13,4 +13,7 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="Asia/Kolkata",
     task_track_started=True,
+    # ✅ YE ADD KARO — HF Spaces pe sync mode mein chalega
+    task_always_eager=settings.CELERY_TASK_ALWAYS_EAGER,
+    task_eager_propagates=True,  # errors properly raise honge eager mode mein
 )

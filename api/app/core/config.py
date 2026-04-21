@@ -1,7 +1,11 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv("api/.env")
+# BEFORE
+# load_dotenv("api/.env")
+
+# AFTER
+load_dotenv()  # automatically .env dhundhega current directory mein
 
 
 def _csv_env(name: str, default: str = "") -> list[str]:
@@ -15,7 +19,8 @@ class Settings:
 
     DATABASE_URL = os.getenv("DATABASE_URL", "")
     REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
-
+    CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_TASK_ALWAYS_EAGER", "false").lower() == "true"
+    
     MODEL_NAME = os.getenv("MODEL_NAME", "all-MiniLM-L6-v2")
 
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

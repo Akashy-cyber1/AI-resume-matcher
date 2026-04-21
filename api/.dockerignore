@@ -1,0 +1,13 @@
+.env
+.env.*
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+frontend/
+*.md
+.pytest_cache
+venv/
+venv_test/
+*.egg-info
